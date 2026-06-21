@@ -13,13 +13,21 @@ Write-Host ""
 Write-Host "  LOC Powershell Code, Slightly Modified To Stop Bypassing/Cleaners | @8wl5 on Discord  " -ForegroundColor Blue -NoNewline
 Write-Host ""
 
-# Simulated loading bar
-for ($i = 0; $i -le 10; $i++) {
-    $percent = $i * 10
-    $bar = "#" * $i + "-" * (10 - $i)
-    Write-Host "`r[ $bar ] $percent%" -NoNewline
-    Start-Sleep -Milliseconds 50
+# Loading UI
+$estimatedSeconds = 28
+
+for ($i = 0; $i -le 100; $i++) {
+
+    $remaining = $estimatedSeconds - [math]::Floor(($i / 100) * $estimatedSeconds)
+
+    $filled = [math]::Floor($i / 10)
+    $bar = "#" * $filled + "-" * (10 - $filled)
+
+    Write-Host "`r[ $bar ] $i% | ETA ${remaining}s " -NoNewline
+
+    Start-Sleep -Milliseconds 280
 }
+
 Write-Host "`n"
 
 # Section outputs
