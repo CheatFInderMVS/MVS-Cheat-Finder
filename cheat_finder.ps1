@@ -257,3 +257,4 @@ Write-Host "Completed in $((Get-Date) - $startTime).TotalSeconds seconds." -Fore
 Write-Host "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Blue
 
 # ===================== END SCRIPT =====================
+# all credits to LOC, MORT, REO, Making this less bypassable + Avoid Cleaners. DM @8wl5
