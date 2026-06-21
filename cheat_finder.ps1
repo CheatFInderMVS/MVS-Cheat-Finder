@@ -44,15 +44,16 @@ $watchlist = @("BOOTSTRAPPERNEW.EXE", "BOOTSTRAPPER.EXE", "XENO.EXE", "XENOUI.EX
 # --- Exclusion Check ---
 try {
     $exclusions = Get-MpPreference | Select-Object -ExpandProperty ExclusionPath
+
     if ($exclusions) {
-        foreach ($path in $exclusions) {
-            $exclusionsOutput += "FAILURE: Exclusion paths detected:"
-            $exclusionsOutput += "$path"
-        }
-    } else {
+        $exclusionsOutput += "FAILURE: Exclusion paths detected:"
+        $exclusionsOutput += $exclusions
+    }
+    else {
         $exclusionsOutput += "SUCCESS: No Exclusions were found at the moment."
     }
-} catch {
+}
+catch {
     $exclusionsOutput += "WARNING: Could not get exclusion paths. MUST RUN AS ADMINISTRATOR!"
 }
 
@@ -105,14 +106,18 @@ try {
 
 # --- Exploit Check ---
 try {
-    $hash = "A89E3321B2BC0A90C21714F153E26DCF2BDEA4BC7200AF9C8CA8394FF54470A1"
+
     $found = Test-Path "$env:APPDATA\Isabelle"
-    if ($hash -and $found) {
-        $exploitOutput += "FAILURE: Isabelle exploit folder found and hash matched."
-    } else {
+
+    if ($found) {
+        $exploitOutput += "FAILURE: Isabelle exploit folder found."
+    }
+    else {
         $exploitOutput += "SUCCESS: No exploit signs found."
     }
-} catch {
+
+}
+catch {
     $exploitOutput += "WARNING: Exploit check could not be completed."
 }
 
@@ -350,7 +355,7 @@ $warningCount = ($allLines | Where-Object {
     $_ -match '^WARNING'
 }).Count
 
-$totalChecks = $successCount + $failureCount
+$totalChecks = $successCount + $failureCount + $warningCount
 
 if ($totalChecks -gt 0) {
     $rate = [math]::Round(
