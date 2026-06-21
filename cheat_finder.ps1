@@ -134,39 +134,63 @@ try {
     $prefetchOutput += "WARNING: Could not access prefetch."
 }
 
-# --- Deleted Prefetches Check (DEDUPLICATED) ---
+# --- Deleted Prefetches Check (FIXED) ---
 try {
+
     $prefetchPath = "C:\Windows\Prefetch"
-    
-    $pfCount = (Get-ChildItem $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue).Count
+
+    $pfFiles = Get-ChildItem $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue
+    $pfCount = $pfFiles.Count
+
     if ($pfCount -lt 15) {
-        $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
+        $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files)."
     }
 
-    $clearedLogs = Get-WinEvent -FilterHashtable @{LogName='System'; Id=@(104, 1102)} -ErrorAction SilentlyContinue -MaxEvents 1
+    $clearedLogs = Get-WinEvent -FilterHashtable @{
+        LogName = 'System'
+        Id      = @(104,1102)
+    } -ErrorAction SilentlyContinue -MaxEvents 1
+
     if ($clearedLogs) {
-        $deletedPrefetchOutput += "WARNING: Event Log history was recently cleared (ID 104/1102 found)."
+        $deletedPrefetchOutput += "WARNING: Event Log history was recently cleared."
     }
 
-    $usnDeleted = fsutil usn readjournal C: csv 2>$null | findstr /I "\.pf" | findstr /I "delete"
-    if ($usnDeleted) {
-        $uniqueFiles = @()
-        foreach ($line in $usnDeleted) {
-            if ($line -match '\b([A-Za-z0-9_-]+\.PF)\b') {
-                $uniqueFiles += $Matches[1].ToUpper()
+    $usnDeleted = fsutil usn readjournal C: csv 2>$null |
+        findstr /I "\.pf" |
+        findstr /I "delete"
+
+    $uniqueFiles = [System.Collections.Generic.HashSet[string]]::new()
+
+    foreach ($line in $usnDeleted) {
+
+        if ($line -match '([A-Za-z0-9_\-]+\.PF)') {
+
+            $file = $Matches[1].ToUpper()
+
+            if (
+                $file.Length -gt 8 -and
+                $file -notmatch '^[A-Z0-9]{6,8}\.PF$'
+            ) {
+                $null = $uniqueFiles.Add($file)
             }
         }
-        # Fixed duplication issue completely right here
-        foreach ($file in ($uniqueFiles | Select-Object -Unique)) {
-            $deletedPrefetchOutput += "WARNING: Deleted Prefetch File Detected -> $file"
-        }
     }
 
-    if ($deletedPrefetchOutput.Count -eq 0) {
+    foreach ($file in ($uniqueFiles | Sort-Object)) {
+        $deletedPrefetchOutput += "WARNING: Deleted Prefetch File Detected -> $file"
+    }
+
+    if (
+        $deletedPrefetchOutput.Count -eq 0
+    ) {
         $deletedPrefetchOutput += "SUCCESS: Prefetch folder structure and deletion logs look secure."
     }
-} catch {
-    $deletedPrefetchOutput = "WARNING: Could not verify deleted prefetches."
+
+}
+catch {
+    $deletedPrefetchOutput = @(
+        "WARNING: Could not verify deleted prefetches."
+    )
 }
 
 # --- Deleted Muicaches Check (FIXED COUNT GLITCH) ---
@@ -299,28 +323,66 @@ Write-Section "Registry Scan" $registryOutput
 Write-Section "PAH (Process Active History)" $pahOutput
 
 # --- Summary ---
-$allSections = @(
-    $exclusionsOutput, $threatsOutput, $memoryIntegrityOutput, $defenderOutput,
-    $exploitOutput, $prefetchOutput, $keyAuthOutput, $registryOutput, $pahOutput,
-    $deletedPrefetchOutput, $deletedMuiCacheOutput
+
+$allLines = @()
+
+$allLines += $exclusionsOutput
+$allLines += $threatsOutput
+$allLines += $memoryIntegrityOutput
+$allLines += $defenderOutput
+$allLines += $exploitOutput
+$allLines += $prefetchOutput
+$allLines += $keyAuthOutput
+$allLines += $registryOutput
+$allLines += $pahOutput
+$allLines += $deletedPrefetchOutput
+$allLines += $deletedMuiCacheOutput
+
+$successCount = ($allLines | Where-Object {
+    $_ -match '^SUCCESS'
+}).Count
+
+$failureCount = ($allLines | Where-Object {
+    $_ -match '^FAILURE'
+}).Count
+
+$warningCount = ($allLines | Where-Object {
+    $_ -match '^WARNING'
+}).Count
+
+$totalChecks = $successCount + $failureCount
+
+if ($totalChecks -gt 0) {
+    $rate = [math]::Round(
+        ($successCount / $totalChecks) * 100,
+        2
+    )
+}
+else {
+    $rate = 0
+}
+
+if ($rate -ge 90) {
+    $color = "Green"
+}
+elseif ($rate -ge 70) {
+    $color = "Yellow"
+}
+else {
+    $color = "Red"
+}
+
+$elapsedSeconds = [math]::Round(
+    ((Get-Date) - $startTime).TotalSeconds,
+    2
 )
-$successCount = ($allSections | ForEach-Object {
-    if ($_ -notcontains ($_ | Where-Object { $_ -match '^FAILURE' })) { 1 } else { 0 }
-}) | Measure-Object -Sum | Select-Object -ExpandProperty Sum
 
-$total = $allSections.Count
-$failures = $total - $successCount
-$warnings = ($allSections | ForEach-Object { $_ | Where-Object { $_ -match '^WARNING' } }).Count
-$rate = [math]::Round(($successCount / $total) * 100, 2)
-
-$color = if ($rate -eq 100) { "Green" } else { "Red" }
-$elapsedSeconds = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 2)
-
+Write-Host ""
 Write-Host "--- Summary ---" -ForegroundColor White
-Write-Host "Success Rate: $rate% ($successCount / $total)" -ForegroundColor $color
-Write-Host "Failures: $failures" -ForegroundColor Red
-Write-Host "Warnings: $warnings" -ForegroundColor Yellow
-Write-Host "Completed in $elapsedSeconds seconds." -ForegroundColor Red
+Write-Host "Success Rate: $rate%" -ForegroundColor $color
+Write-Host "Successes: $successCount" -ForegroundColor Green
+Write-Host "Failures: $failureCount" -ForegroundColor Red
+Write-Host "Warnings: $warningCount" -ForegroundColor Yellow
+Write-Host "Completed in $elapsedSeconds seconds." -ForegroundColor Cyan
 Write-Host "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Blue
-
 # ===================== END SCRIPT =====================
