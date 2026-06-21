@@ -133,26 +133,33 @@ try {
 
 # --- Deleted Prefetches Check ---
 try {
+    # Check if a cleaner completely wiped the directory first
     $pfCount = (Get-ChildItem "C:\Windows\Prefetch" -Filter "*.pf").Count
+    
+    # Check Windows Event Logs for Audit Cleared / Log Cleared events (Event ID 104 or 1102)
+    $clearedLogs = Get-WinEvent -LogName System -ErrorAction SilentlyContinue | Where-Object { $_.Id -eq 104 -or $_.Id -eq 1102 }
+    
     if ($pfCount -lt 15) {
-        $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
+        $deletedPrefetchOutput = "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
+    } elseif ($clearedLogs) {
+        $deletedPrefetchOutput = "WARNING: Event Log history was recently cleared (ID 104/1102 found)."
     } else {
-        $clearedLogs = Get-WinEvent -LogName System -ErrorAction SilentlyContinue | Where-Object {$_.Id -eq 104}
-        if ($clearedLogs) {
-            $deletedPrefetchOutput += "WARNING: Event Log 104 found. Log history was recently cleared."
+        # Check if the primary layout index file (ReadyBoot) is missing—cleaners always delete this
+        if (-not (Test-Path "C:\Windows\Prefetch\ReadyBoot\ReadyBoot.sf" -ErrorAction SilentlyContinue)) {
+            $deletedPrefetchOutput = "WARNING: ReadyBoot.sf index file is missing. Prefetch traces altered!"
         } else {
-            $deletedPrefetchOutput += "SUCCESS: Prefetch folder and logs look secure."
+            $deletedPrefetchOutput = "SUCCESS: Prefetch folder structure and deletion logs look secure."
         }
     }
 } catch {
-    $deletedPrefetchOutput += "WARNING: Could not verify deleted prefetches."
+    $deletedPrefetchOutput = "WARNING: Could not verify deleted prefetches."
 }
 
 # --- Deleted Muicaches Check ---
 try {
     $muiPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
     
-    # ACCURATE FIX: This specifically counts only the actual app registry entries, ignoring system object properties
+    # Using .ValueCount target to fix the wall of 1s loop
     $muiCount = (Get-Item -Path $muiPath).ValueCount
     if ($null -eq $muiCount) {
         $muiCount = (Get-Item -Path $muiPath).GetValueNames().Count
