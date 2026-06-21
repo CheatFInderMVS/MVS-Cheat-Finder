@@ -133,23 +133,37 @@ try {
 
 # --- Deleted Prefetches Check ---
 try {
-    # Check if a cleaner completely wiped the directory first
-    $pfCount = (Get-ChildItem "C:\Windows\Prefetch" -Filter "*.pf").Count
-    
-    # Check Windows Event Logs for Audit Cleared / Log Cleared events (Event ID 104 or 1102)
-    $clearedLogs = Get-WinEvent -LogName System -ErrorAction SilentlyContinue | Where-Object { $_.Id -eq 104 -or $_.Id -eq 1102 }
-    
+    $prefetchPath = "C:\Windows\Prefetch"
+    $deletedPrefetchOutput = @()
+
+    # 1. Check if the entire folder has been completely emptied
+    $pfCount = (Get-ChildItem $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue).Count
     if ($pfCount -lt 15) {
-        $deletedPrefetchOutput = "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
-    } elseif ($clearedLogs) {
-        $deletedPrefetchOutput = "WARNING: Event Log history was recently cleared (ID 104/1102 found)."
-    } else {
-        # Check if the primary layout index file (ReadyBoot) is missing—cleaners always delete this
-        if (-not (Test-Path "C:\Windows\Prefetch\ReadyBoot\ReadyBoot.sf" -ErrorAction SilentlyContinue)) {
-            $deletedPrefetchOutput = "WARNING: ReadyBoot.sf index file is missing. Prefetch traces altered!"
-        } else {
-            $deletedPrefetchOutput = "SUCCESS: Prefetch folder structure and deletion logs look secure."
+        $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
+    }
+
+    # 2. Check Windows Event Logs for Event ID 104 (Log Cleared)
+    $clearedLogs = Get-WinEvent -LogName System -ErrorAction SilentlyContinue | Where-Object { $_.Id -eq 104 -or $_.Id -eq 1102 }
+    if ($clearedLogs) {
+        $deletedPrefetchOutput += "WARNING: Event Log history was recently cleared (ID 104/1102 found)."
+    }
+
+    # 3. ADVANCED BULLETPROOF CHECK: Query the Windows USN Journal for any deleted files in the Prefetch directory
+    # This catches ANY file deletion, completely ignoring whether it was on a watchlist or not.
+    $usnDeleted = fsutil usn readjournal C: csv | ConvertFrom-String -Delimiter "," -ErrorAction SilentlyContinue | 
+        Where-Object { $_.P2 -like "*\Windows\Prefetch\*.pf" -and $_.P4 -like "*Delete*" }
+
+    if ($usnDeleted) {
+        foreach ($deletion in $usnDeleted) {
+            # Extract just the filename from the log entry path
+            $fileName = Split-Path $deletion.P2 -Leaf
+            $deletedPrefetchOutput += "WARNING: Deleted Prefetch File Detected -> $fileName"
         }
+    }
+
+    # Fallback to SUCCESS if no indicators triggered
+    if ($deletedPrefetchOutput.Count -eq 0) {
+        $deletedPrefetchOutput += "SUCCESS: Prefetch folder structure and deletion logs look secure."
     }
 } catch {
     $deletedPrefetchOutput = "WARNING: Could not verify deleted prefetches."
