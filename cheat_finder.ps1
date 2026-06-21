@@ -1,4 +1,3 @@
-
 # ===================== BEGIN SCRIPT =====================
 
 # Timer start
@@ -34,6 +33,8 @@ $prefetchOutput = @()
 $keyAuthOutput = @()
 $registryOutput = @()
 $pahOutput = @("SUCCESS: PAH initiated successfully, DO NOT CLOSE PAH AT ALL TIMES.")
+$deletedPrefetchOutput = @()
+$deletedMuiCacheOutput = @()
 
 # Blacklist definitions
 $blacklist = @("matcha", "olduimatrix", "autoexe", "bin", "workspace", "monkeyaim", "thunderaim", "thunderclient", "celex", "release", "matrix", "matcha.exe", "triggerbot", "solara", "xeno", "wave", "cloudy", "tupical", "horizon", "myst", "celery", "zarora", "juju", "nezure", "FusionHacks.zip", "release.zip", "bootstrapper", "aimmy.exe", "aimmy", "Fluxus", "clumsy", "build", "build.zip", "build.rar", "MystW.exe", "isabelle", "dx9", "dx9ware")
@@ -130,6 +131,36 @@ try {
     $prefetchOutput += "WARNING: Could not access prefetch."
 }
 
+# --- Deleted Prefetches Check ---
+try {
+    $pfCount = (Get-ChildItem "C:\Windows\Prefetch" -Filter "*.pf").Count
+    if ($pfCount -lt 15) {
+        $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
+    } else {
+        $clearedLogs = Get-WinEvent -LogName System -ErrorAction SilentlyContinue | Where-Object {$_.Id -eq 104}
+        if ($clearedLogs) {
+            $deletedPrefetchOutput += "WARNING: Event Log 104 found. Log history was recently cleared."
+        } else {
+            $deletedPrefetchOutput += "SUCCESS: Prefetch folder and logs look secure."
+        }
+    }
+} catch {
+    $deletedPrefetchOutput += "WARNING: Could not verify deleted prefetches."
+}
+
+# --- Deleted Muicaches Check ---
+try {
+    $muiPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
+    $muiCount = (Get-ItemProperty -Path $muiPath).PSObject.Properties.Count
+    if ($muiCount -lt 30) {
+        $deletedMuiCacheOutput += "WARNING: MuiCache has suspiciously few entries ($muiCount). Key was cleared recently!"
+    } else {
+        $deletedMuiCacheOutput += "SUCCESS: MuiCache registry logs appear intact."
+    }
+} catch {
+    $deletedMuiCacheOutput += "WARNING: Could not access MuiCache key structure."
+}
+
 # --- Key Checker ---
 try {
     $folders = Get-ChildItem "C:\ProgramData\KeyAuth\debug" -Directory -ErrorAction Stop
@@ -222,6 +253,8 @@ function Write-Section {
 
 
 Write-Section "Prefetch" $prefetchOutput
+Write-Section "Deleted Prefetches" $deletedPrefetchOutput
+Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
 
 Write-Section "Exclusions" $exclusionsOutput
 Write-Section "Threats" $threatsOutput
@@ -235,7 +268,8 @@ Write-Section "PAH (Process Active History)" $pahOutput
 # --- Summary ---
 $allSections = @(
     $exclusionsOutput, $threatsOutput, $memoryIntegrityOutput, $defenderOutput,
-    $exploitOutput, $prefetchOutput, $keyAuthOutput, $registryOutput, $pahOutput
+    $exploitOutput, $prefetchOutput, $keyAuthOutput, $registryOutput, $pahOutput,
+    $deletedPrefetchOutput, $deletedMuiCacheOutput
 )
 $successCount = ($allSections | ForEach-Object {
     if ($_ -notcontains ($_ | Where-Object { $_ -match '^FAILURE' })) { 1 } else { 0 }
@@ -248,12 +282,15 @@ $rate = [math]::Round(($successCount / $total) * 100, 2)
 
 $color = if ($rate -eq 100) { "Green" } else { "Red" }
 
+# Clean mathematical evaluation of elapsed time formatted to 2 decimal places
+$elapsedSeconds = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 2)
+
 Write-Host ""
 Write-Host "--- Summary ---" -ForegroundColor White
 Write-Host "Success Rate: $rate% ($successCount / $total)" -ForegroundColor $color
 Write-Host "Failures: $failures" -ForegroundColor Red
 Write-Host "Warnings: $warnings" -ForegroundColor Yellow
-Write-Host "Completed in $((Get-Date) - $startTime).TotalSeconds seconds." -ForegroundColor Red
+Write-Host "Completed in $elapsedSeconds seconds." -ForegroundColor Red
 Write-Host "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Blue
 
 # ===================== END SCRIPT =====================
