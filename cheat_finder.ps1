@@ -14,20 +14,14 @@ Write-Host "  LOC Powershell Code, Slightly Modified To Stop Bypassing/Cleaners 
 Write-Host " - LOC PowerShell T1" -ForegroundColor White
 Write-Host ""
 
-# Simulated loading bar
+# Simulated loading bar (Optimized for speed)
 for ($i = 0; $i -le 10; $i++) {
     $percent = $i * 10
     $bar = "#" * $i + "-" * (10 - $i)
     Write-Host "`r[ $bar ] $percent%" -NoNewline
-    Start-Sleep -Milliseconds 300
+    Start-Sleep -Milliseconds 50
 }
-Write-Host ""
-
-# Dynamic processing ETA UI
-Write-Host ""
-Write-Host "[*] Querying File-System Journals & Deep Registry Structures..." -ForegroundColor Cyan
-Write-Host "[!] Hard scans can take 5-15 seconds depending on drive size." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "`n"
 
 # Section outputs
 $exclusionsOutput = @()
@@ -137,28 +131,33 @@ try {
     $prefetchOutput += "WARNING: Could not access prefetch."
 }
 
-# --- Deleted Prefetches Check ---
+# --- Deleted Prefetches Check (ULTRA PERFORMANCE FIX) ---
 try {
     $prefetchPath = "C:\Windows\Prefetch"
     
+    # 1. Quick size count check
     $pfCount = (Get-ChildItem $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue).Count
     if ($pfCount -lt 15) {
         $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
     }
 
-    $clearedLogs = Get-WinEvent -LogName System -ErrorAction SilentlyContinue | Where-Object { $_.Id -eq 104 -or $_.Id -eq 1102 }
+    # 2. Lightning fast Event Log lookup using API filter indexes instead of pipeline parsing
+    $clearedLogs = Get-WinEvent -FilterHashtable @{LogName='System'; Id=@(104, 1102)} -ErrorAction SilentlyContinue -MaxEvents 1
     if ($clearedLogs) {
         $deletedPrefetchOutput += "WARNING: Event Log history was recently cleared (ID 104/1102 found)."
     }
 
-    # Querying USN Journal for all deleted files inside the Prefetch folder
-    $usnDeleted = fsutil usn readjournal C: csv | ConvertFrom-String -Delimiter "," -ErrorAction SilentlyContinue | 
-        Where-Object { $_.P2 -like "*\Windows\Prefetch\*.pf" -and $_.P4 -like "*Delete*" }
-
+    # 3. Native Pipe Optimization: Offloads journal parsing directly to 'findstr' binary (runs instantly)
+    $usnDeleted = fsutil usn readjournal C: csv 2>$null | findstr /I "\.pf" | findstr /I "delete"
     if ($usnDeleted) {
-        foreach ($deletion in $usnDeleted) {
-            $fileName = Split-Path $deletion.P2 -Leaf
-            $deletedPrefetchOutput += "WARNING: Deleted Prefetch File Detected -> $fileName"
+        $uniqueFiles = @()
+        foreach ($line in $usnDeleted) {
+            if ($line -match '\b([A-Za-z0-9_-]+\.PF)\b') {
+                $uniqueFiles += $Matches[1]
+            }
+        }
+        foreach ($file in ($uniqueFiles | Select-Object -Unique)) {
+            $deletedPrefetchOutput += "WARNING: Deleted Prefetch File Detected -> $file"
         }
     }
 
@@ -276,10 +275,6 @@ function Write-Section {
     }
 }
 
-# Clear processing notice before printing results
-Clear-Host
-Write-Host "--- ANALYSIS COMPLETE ---`n" -ForegroundColor Green
-
 Write-Section "Prefetch" $prefetchOutput
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
@@ -310,7 +305,6 @@ $rate = [math]::Round(($successCount / $total) * 100, 2)
 
 $color = if ($rate -eq 100) { "Green" } else { "Red" }
 
-# Exact mathematical computation fixing your old textual string append layout error
 $elapsedSeconds = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 2)
 
 Write-Host ""
