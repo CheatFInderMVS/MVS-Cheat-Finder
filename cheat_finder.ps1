@@ -151,14 +151,20 @@ try {
 # --- Deleted Muicaches Check ---
 try {
     $muiPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
-    $muiCount = (Get-ItemProperty -Path $muiPath).PSObject.Properties.Count
+    
+    # ACCURATE FIX: This specifically counts only the actual app registry entries, ignoring system object properties
+    $muiCount = (Get-Item -Path $muiPath).ValueCount
+    if ($null -eq $muiCount) {
+        $muiCount = (Get-Item -Path $muiPath).GetValueNames().Count
+    }
+    
     if ($muiCount -lt 30) {
-        $deletedMuiCacheOutput += "WARNING: MuiCache has suspiciously few entries ($muiCount). Key was cleared recently!"
+        $deletedMuiCacheOutput = "WARNING: MuiCache has suspiciously few entries ($muiCount). Key was cleared recently!"
     } else {
-        $deletedMuiCacheOutput += "SUCCESS: MuiCache registry logs appear intact."
+        $deletedMuiCacheOutput = "SUCCESS: MuiCache population looks normal ($muiCount entries)."
     }
 } catch {
-    $deletedMuiCacheOutput += "WARNING: Could not access MuiCache key structure."
+    $deletedMuiCacheOutput = "WARNING: Could not access MuiCache key structure."
 }
 
 # --- Key Checker ---
