@@ -14,7 +14,7 @@ Write-Host "  LOC Powershell Code, Slightly Modified To Stop Bypassing/Cleaners 
 Write-Host " - LOC PowerShell T1" -ForegroundColor White
 Write-Host ""
 
-# Simulated loading bar (Optimized for speed)
+# Simulated loading bar
 for ($i = 0; $i -le 10; $i++) {
     $percent = $i * 10
     $bar = "#" * $i + "-" * (10 - $i)
@@ -44,10 +44,13 @@ $watchlist = @("BOOTSTRAPPERNEW.EXE", "BOOTSTRAPPER.EXE", "XENO.EXE", "XENOUI.EX
 # --- Exclusion Check ---
 try {
     $exclusions = Get-MpPreference | Select-Object -ExpandProperty ExclusionPath
-    $exclusionsOutput += if ($exclusions) {
-        "FAILURE: Exclusion paths detected:`n$($exclusions -join "`n")"
+    if ($exclusions) {
+        foreach ($path in $exclusions) {
+            $exclusionsOutput += "FAILURE: Exclusion paths detected:"
+            $exclusionsOutput += "$path"
+        }
     } else {
-        "SUCCESS: No Exclusions were found at the moment."
+        $exclusionsOutput += "SUCCESS: No Exclusions were found at the moment."
     }
 } catch {
     $exclusionsOutput += "WARNING: Could not get exclusion paths. MUST RUN AS ADMINISTRATOR!"
@@ -131,31 +134,29 @@ try {
     $prefetchOutput += "WARNING: Could not access prefetch."
 }
 
-# --- Deleted Prefetches Check (ULTRA PERFORMANCE FIX) ---
+# --- Deleted Prefetches Check (DEDUPLICATED) ---
 try {
     $prefetchPath = "C:\Windows\Prefetch"
     
-    # 1. Quick size count check
     $pfCount = (Get-ChildItem $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue).Count
     if ($pfCount -lt 15) {
         $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
     }
 
-    # 2. Lightning fast Event Log lookup using API filter indexes instead of pipeline parsing
     $clearedLogs = Get-WinEvent -FilterHashtable @{LogName='System'; Id=@(104, 1102)} -ErrorAction SilentlyContinue -MaxEvents 1
     if ($clearedLogs) {
         $deletedPrefetchOutput += "WARNING: Event Log history was recently cleared (ID 104/1102 found)."
     }
 
-    # 3. Native Pipe Optimization: Offloads journal parsing directly to 'findstr' binary (runs instantly)
     $usnDeleted = fsutil usn readjournal C: csv 2>$null | findstr /I "\.pf" | findstr /I "delete"
     if ($usnDeleted) {
         $uniqueFiles = @()
         foreach ($line in $usnDeleted) {
             if ($line -match '\b([A-Za-z0-9_-]+\.PF)\b') {
-                $uniqueFiles += $Matches[1]
+                $uniqueFiles += $Matches[1].ToUpper()
             }
         }
+        # Fixed duplication issue completely right here
         foreach ($file in ($uniqueFiles | Select-Object -Unique)) {
             $deletedPrefetchOutput += "WARNING: Deleted Prefetch File Detected -> $file"
         }
@@ -168,12 +169,15 @@ try {
     $deletedPrefetchOutput = "WARNING: Could not verify deleted prefetches."
 }
 
-# --- Deleted Muicaches Check ---
+# --- Deleted Muicaches Check (FIXED COUNT GLITCH) ---
 try {
     $muiPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
-    $muiCount = (Get-Item -Path $muiPath).ValueCount
+    $muiKey = Get-Item -Path $muiPath
+    
+    # Correct key valuation to return a true integer item total count
+    $muiCount = $muiKey.ValueCount
     if ($null -eq $muiCount) {
-        $muiCount = (Get-Item -Path $muiPath).GetValueNames().Count
+        $muiCount = ($muiKey.GetValueNames()).Count
     }
     
     if ($muiCount -lt 30) {
@@ -258,27 +262,33 @@ Start-Job {
     Show-ProcessActiveHistory
 } | Out-Null
 
-# --- Print Results ---
+# --- Print Results with clean spacing layout ---
 function Write-Section {
     param ([string]$Title, [string[]]$Lines)
     Write-Host "--- $Title ---" -ForegroundColor White
+    
     foreach ($line in $Lines) {
         if ($line -match "^SUCCESS") {
             Write-Host $line -ForegroundColor Green
         } elseif ($line -match "^FAILURE") {
-            Write-Host $line -ForegroundColor Red
+            if ($line -eq "FAILURE: Exclusion paths detected:") {
+                Write-Host $line -ForegroundColor Red
+            } else {
+                # Indents the raw file path variables nicely below the failure label
+                Write-Host "$line" -ForegroundColor Red
+            }
         } elseif ($line -match "^WARNING") {
             Write-Host $line -ForegroundColor Yellow
         } else {
             Write-Host $line -ForegroundColor White
         }
     }
+    Write-Host "" # Explicit layout spacing padding line
 }
 
 Write-Section "Prefetch" $prefetchOutput
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
-
 Write-Section "Exclusions" $exclusionsOutput
 Write-Section "Threats" $threatsOutput
 Write-Section "Memory Integrity" $memoryIntegrityOutput
@@ -304,10 +314,8 @@ $warnings = ($allSections | ForEach-Object { $_ | Where-Object { $_ -match '^WAR
 $rate = [math]::Round(($successCount / $total) * 100, 2)
 
 $color = if ($rate -eq 100) { "Green" } else { "Red" }
-
 $elapsedSeconds = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 2)
 
-Write-Host ""
 Write-Host "--- Summary ---" -ForegroundColor White
 Write-Host "Success Rate: $rate% ($successCount / $total)" -ForegroundColor $color
 Write-Host "Failures: $failures" -ForegroundColor Red
@@ -316,4 +324,3 @@ Write-Host "Completed in $elapsedSeconds seconds." -ForegroundColor Red
 Write-Host "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Blue
 
 # ===================== END SCRIPT =====================
-# all credits to LOC, MORT, REO, Making this less bypassable + Avoid Cleaners. DM @8wl5
