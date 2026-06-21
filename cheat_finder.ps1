@@ -23,6 +23,12 @@ for ($i = 0; $i -le 10; $i++) {
 }
 Write-Host ""
 
+# Dynamic processing ETA UI
+Write-Host ""
+Write-Host "[*] Querying File-System Journals & Deep Registry Structures..." -ForegroundColor Cyan
+Write-Host "[!] Hard scans can take 5-15 seconds depending on drive size." -ForegroundColor Yellow
+Write-Host ""
+
 # Section outputs
 $exclusionsOutput = @()
 $threatsOutput = @()
@@ -134,34 +140,28 @@ try {
 # --- Deleted Prefetches Check ---
 try {
     $prefetchPath = "C:\Windows\Prefetch"
-    $deletedPrefetchOutput = @()
-
-    # 1. Check if the entire folder has been completely emptied
+    
     $pfCount = (Get-ChildItem $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue).Count
     if ($pfCount -lt 15) {
         $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files). Wiped by cleaner!"
     }
 
-    # 2. Check Windows Event Logs for Event ID 104 (Log Cleared)
     $clearedLogs = Get-WinEvent -LogName System -ErrorAction SilentlyContinue | Where-Object { $_.Id -eq 104 -or $_.Id -eq 1102 }
     if ($clearedLogs) {
         $deletedPrefetchOutput += "WARNING: Event Log history was recently cleared (ID 104/1102 found)."
     }
 
-    # 3. ADVANCED BULLETPROOF CHECK: Query the Windows USN Journal for any deleted files in the Prefetch directory
-    # This catches ANY file deletion, completely ignoring whether it was on a watchlist or not.
+    # Querying USN Journal for all deleted files inside the Prefetch folder
     $usnDeleted = fsutil usn readjournal C: csv | ConvertFrom-String -Delimiter "," -ErrorAction SilentlyContinue | 
         Where-Object { $_.P2 -like "*\Windows\Prefetch\*.pf" -and $_.P4 -like "*Delete*" }
 
     if ($usnDeleted) {
         foreach ($deletion in $usnDeleted) {
-            # Extract just the filename from the log entry path
             $fileName = Split-Path $deletion.P2 -Leaf
             $deletedPrefetchOutput += "WARNING: Deleted Prefetch File Detected -> $fileName"
         }
     }
 
-    # Fallback to SUCCESS if no indicators triggered
     if ($deletedPrefetchOutput.Count -eq 0) {
         $deletedPrefetchOutput += "SUCCESS: Prefetch folder structure and deletion logs look secure."
     }
@@ -172,8 +172,6 @@ try {
 # --- Deleted Muicaches Check ---
 try {
     $muiPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
-    
-    # Using .ValueCount target to fix the wall of 1s loop
     $muiCount = (Get-Item -Path $muiPath).ValueCount
     if ($null -eq $muiCount) {
         $muiCount = (Get-Item -Path $muiPath).GetValueNames().Count
@@ -278,6 +276,9 @@ function Write-Section {
     }
 }
 
+# Clear processing notice before printing results
+Clear-Host
+Write-Host "--- ANALYSIS COMPLETE ---`n" -ForegroundColor Green
 
 Write-Section "Prefetch" $prefetchOutput
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
@@ -309,7 +310,7 @@ $rate = [math]::Round(($successCount / $total) * 100, 2)
 
 $color = if ($rate -eq 100) { "Green" } else { "Red" }
 
-# Clean mathematical evaluation of elapsed time formatted to 2 decimal places
+# Exact mathematical computation fixing your old textual string append layout error
 $elapsedSeconds = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 2)
 
 Write-Host ""
