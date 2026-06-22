@@ -154,18 +154,32 @@ Write-Progress -Activity "CheatFinder Scan" `
     -Status "Prefetch Scan Complete" `
     -PercentComplete 60
 
-# --- Deleted Prefetches Check (FIXED) ---
+# --- Deleted Prefetches Check (FIXED + USN HEALTH CHECK) ---
 try {
 
     $prefetchPath = "C:\Windows\Prefetch"
 
+    # Check if USN Journal exists
+    try {
+        $journal = fsutil usn queryjournal C: 2>$null
+
+        if (-not $journal) {
+            $deletedPrefetchOutput += "WARNING: USN Journal unavailable or recently deleted."
+        }
+    }
+    catch {
+        $deletedPrefetchOutput += "WARNING: Unable to access USN Journal."
+    }
+
     $pfFiles = Get-ChildItem $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue
     $pfCount = $pfFiles.Count
 
-    if ($pfCount -lt 15) {
-        $deletedPrefetchOutput += "WARNING: Prefetch folder is suspiciously empty ($pfCount files)."
+    # Low prefetch count warning
+    if ($pfCount -lt 50) {
+        $deletedPrefetchOutput += "WARNING: Prefetch folder contains unusually few files ($pfCount)."
     }
 
+    # Event log clear detection
     $clearedLogs = Get-WinEvent -FilterHashtable @{
         LogName = 'System'
         Id      = @(104,1102)
@@ -175,6 +189,7 @@ try {
         $deletedPrefetchOutput += "WARNING: Event Log history was recently cleared."
     }
 
+    # USN deleted prefetch detection
     $usnDeleted = fsutil usn readjournal C: csv 2>$null |
         findstr /I "\.pf" |
         findstr /I "delete"
@@ -200,9 +215,7 @@ try {
         $deletedPrefetchOutput += "WARNING: Deleted Prefetch File Detected -> $file"
     }
 
-    if (
-        $deletedPrefetchOutput.Count -eq 0
-    ) {
+    if ($deletedPrefetchOutput.Count -eq 0) {
         $deletedPrefetchOutput += "SUCCESS: Prefetch folder structure and deletion logs look secure."
     }
 
@@ -214,7 +227,7 @@ catch {
 }
 
 Write-Progress -Activity "CheatFinder Scan" `
-    -Status "Deleted Prefetch Check Complete" `
+    -Status "Deleted Prefetches Scan Complete" `
     -PercentComplete 70
 
 # --- Deleted Muicaches Check (FIXED COUNT GLITCH) ---
