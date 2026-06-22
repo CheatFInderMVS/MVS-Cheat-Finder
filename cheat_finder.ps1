@@ -13,7 +13,7 @@ Write-Host ""
 Write-Host "  LOC Powershell Code, Slightly Modified To Stop Bypassing/Cleaners | @8wl5 on Discord  " -ForegroundColor Blue -NoNewline
 Write-Host ""
 
-# Loading UI
+# Simulated loading bar with ETA
 $estimatedSeconds = 28
 
 for ($i = 0; $i -le 100; $i++) {
@@ -23,7 +23,7 @@ for ($i = 0; $i -le 100; $i++) {
     $filled = [math]::Floor($i / 10)
     $bar = "#" * $filled + "-" * (10 - $filled)
 
-    Write-Host "`r[ $bar ] $i% | ETA ${remaining}s " -NoNewline
+    Write-Host "`r[ $bar ] $i% | ETA ${remaining}s" -NoNewline
 
     Start-Sleep -Milliseconds 280
 }
@@ -64,6 +64,10 @@ catch {
     $exclusionsOutput += "WARNING: Could not get exclusion paths. MUST RUN AS ADMINISTRATOR!"
 }
 
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Exclusions Complete" `
+    -PercentComplete 10
+
 # --- Threats Check ---
 try {
     Import-Module Defender -ErrorAction SilentlyContinue
@@ -79,6 +83,10 @@ try {
 } catch {
     $threatsOutput += "WARNING: Threat scan could not complete."
 }
+
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Threat Scan Complete" `
+    -PercentComplete 20
 
 # --- Memory Integrity & Blocklist ---
 try {
@@ -99,6 +107,10 @@ try {
     $memoryIntegrityOutput += "WARNING: Unable to verify memory integrity."
 }
 
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Memory Integrity Complete" `
+    -PercentComplete 30
+
 # --- Defender Check ---
 try {
     $defender = Get-MpComputerStatus
@@ -110,6 +122,10 @@ try {
 } catch {
     $defenderOutput += "WARNING: Could not assess Defender status."
 }
+
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Defender Check Complete" `
+    -PercentComplete 40
 
 # --- Exploit Check ---
 try {
@@ -128,6 +144,10 @@ catch {
     $exploitOutput += "WARNING: Exploit check could not be completed."
 }
 
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Exploit Check Complete" `
+    -PercentComplete 50
+
 # --- Prefetch ---
 try {
     $now = Get-Date
@@ -145,6 +165,10 @@ try {
 } catch {
     $prefetchOutput += "WARNING: Could not access prefetch."
 }
+
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Prefetch Scan Complete" `
+    -PercentComplete 60
 
 # --- Deleted Prefetches Check (FIXED) ---
 try {
@@ -205,6 +229,10 @@ catch {
     )
 }
 
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Deleted Prefetch Check Complete" `
+    -PercentComplete 70
+
 # --- Deleted Muicaches Check (FIXED COUNT GLITCH) ---
 try {
     $muiPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
@@ -225,6 +253,10 @@ try {
     $deletedMuiCacheOutput = "WARNING: Could not access MuiCache key structure."
 }
 
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "MuiCache Check Complete" `
+    -PercentComplete 80
+
 # --- Key Checker ---
 try {
     $folders = Get-ChildItem "C:\ProgramData\KeyAuth\debug" -Directory -ErrorAction Stop
@@ -234,6 +266,10 @@ try {
 } catch {
     $keyAuthOutput += "SUCCESS: No KeyAuth folders found."
 }
+
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "KeyAuth Check Complete" `
+    -PercentComplete 90
 
 # --- Registry Suspicious Check ---
 try {
@@ -252,6 +288,10 @@ try {
 } catch {
     $registryOutput += "WARNING: Cannot access MuiCache registry."
 }
+
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Registry Scan Complete" `
+    -PercentComplete 100
 
 # --- Show PAH Window ---
 Start-Job {
@@ -297,6 +337,8 @@ Start-Job {
 
     Show-ProcessActiveHistory
 } | Out-Null
+
+Write-Progress -Activity "CheatFinder Scan" -Completed
 
 # --- Print Results with clean spacing layout ---
 function Write-Section {
