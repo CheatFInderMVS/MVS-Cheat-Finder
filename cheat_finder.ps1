@@ -448,7 +448,6 @@ function Write-Section {
 Write-Section "Jump Lists" $jumpListOutput
 Write-Section "BAM History" $bamOutput
 Write-Section "UserAssist" $userAssistOutput
-Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
 Write-Section "Prefetch" $prefetchOutput
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
@@ -509,10 +508,10 @@ $allLines += $keyAuthOutput
 $allLines += $registryOutput
 $allLines += $pahOutput
 $allLines += $deletedPrefetchOutput
+$allLines += $deletedMuiCacheOutput
 $allLines += $userAssistOutput
 $allLines += $bamOutput
 $allLines += $jumpListOutput
-$allLines += $deletedMuiCacheOutput
 
 $successCount = ($allLines | Where-Object {
     $_ -match '^SUCCESS'
