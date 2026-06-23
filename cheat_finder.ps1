@@ -26,6 +26,10 @@ $registryOutput = @()
 $pahOutput = @("SUCCESS: PAH initiated successfully, DO NOT CLOSE PAH AT ALL TIMES.")
 $deletedPrefetchOutput = @()
 $deletedMuiCacheOutput = @()
+$userAssistOutput = @()
+$deletedMuiCacheOutput = @()
+$bamOutput = @()
+$jumpListOutput = @()
 
 # Blacklist definitions
 $blacklist = @("matcha", "olduimatrix", "autoexe", "bin", "workspace", "monkeyaim", "thunderaim", "thunderclient", "celex", "release", "matrix", "matcha.exe", "triggerbot", "solara", "xeno", "wave", "cloudy", "tupical", "horizon", "myst", "celery", "zarora", "juju", "nezure", "FusionHacks.zip", "release.zip", "bootstrapper", "aimmy.exe", "aimmy", "Fluxus", "clumsy", "build", "build.zip", "build.rar", "MystW.exe", "isabelle", "dx9", "dx9ware")
@@ -268,6 +272,86 @@ Write-Progress -Activity "CheatFinder Scan" `
     -Status "KeyAuth Check Complete" `
     -PercentComplete 90
 
+    # --- UserAssist Check ---
+try {
+
+    $userAssistPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist"
+
+    $count = (
+        Get-ChildItem $userAssistPath -Recurse -ErrorAction SilentlyContinue
+    ).Count
+
+    if ($count -lt 5) {
+        $userAssistOutput += "WARNING: UserAssist appears empty or recently cleared."
+    }
+    else {
+        $userAssistOutput += "SUCCESS: UserAssist history appears normal."
+    }
+
+}
+catch {
+    $userAssistOutput += "WARNING: Could not verify UserAssist history."
+}
+
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "UserAssist Check Complete" `
+    -PercentComplete 85
+
+# --- BAM Check ---
+try {
+
+    $bamPath = "HKLM:\SYSTEM\CurrentControlSet\Services\bam\State\UserSettings"
+
+    $bamCount = (
+        Get-ChildItem $bamPath -Recurse -ErrorAction SilentlyContinue
+    ).Count
+
+    if ($bamCount -lt 5) {
+        $bamOutput += "WARNING: BAM execution history appears unusually sparse."
+    }
+    else {
+        $bamOutput += "SUCCESS: BAM execution history appears normal."
+    }
+
+}
+catch {
+    $bamOutput += "WARNING: Could not access BAM execution history."
+}
+
+
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "BAM Check Complete" `
+    -PercentComplete 88
+
+# --- Jump List Check ---
+try {
+
+    $autoPath =
+        "$env:APPDATA\Microsoft\Windows\Recent\AutomaticDestinations"
+
+    $customPath =
+        "$env:APPDATA\Microsoft\Windows\Recent\CustomDestinations"
+
+    $count =
+        (Get-ChildItem $autoPath -ErrorAction SilentlyContinue).Count +
+        (Get-ChildItem $customPath -ErrorAction SilentlyContinue).Count
+
+    if ($count -lt 5) {
+        $jumpListOutput += "WARNING: Jump Lists appear unusually empty."
+    }
+    else {
+        $jumpListOutput += "SUCCESS: Jump List history appears normal."
+    }
+
+}
+catch {
+    $jumpListOutput += "WARNING: Could not verify Jump Lists."
+}
+
+Write-Progress -Activity "CheatFinder Scan" `
+    -Status "Jump List Check Complete" `
+    -PercentComplete 92
+    
 # --- Registry Suspicious Check ---
 try {
     $mui = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
@@ -361,6 +445,10 @@ function Write-Section {
     Write-Host "" # Explicit layout spacing padding line
 }
 
+Write-Section "Jump Lists" $jumpListOutput
+Write-Section "BAM History" $bamOutput
+Write-Section "UserAssist" $userAssistOutput
+Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
 Write-Section "Prefetch" $prefetchOutput
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
@@ -375,6 +463,39 @@ Write-Section "PAH (Process Active History)" $pahOutput
 
 # --- Summary ---
 
+$cleanerScore = 0
+
+if ($deletedPrefetchOutput -join "`n" -match "Deleted Prefetch") { $cleanerScore += 2 }
+
+if ($deletedPrefetchOutput -join "`n" -match "USN Journal") { $cleanerScore += 2 }
+
+if ($deletedMuiCacheOutput -join "`n" -match "WARNING") { $cleanerScore++ }
+
+if ($userAssistOutput -join "`n" -match "WARNING") { $cleanerScore++ }
+
+if ($bamOutput -join "`n" -match "WARNING") { $cleanerScore++ }
+
+if ($jumpListOutput -join "`n" -match "WARNING") { $cleanerScore++ }
+
+Write-Host ""
+Write-Host "--- Cleaner Activity Score ---" -ForegroundColor White
+
+if ($cleanerScore -ge 4) {
+
+    Write-Host "LIKELY CLEANER ACTIVITY DETECTED ($cleanerScore/5)" -ForegroundColor Red
+
+}
+elseif ($cleanerScore -ge 2) {
+
+    Write-Host "SUSPICIOUS SYSTEM CLEANING DETECTED ($cleanerScore/5)" -ForegroundColor Yellow
+
+}
+else {
+
+    Write-Host "No major cleaner activity detected ($cleanerScore/5)" -ForegroundColor Green
+
+}
+
 $allLines = @()
 
 $allLines += $exclusionsOutput
@@ -387,7 +508,6 @@ $allLines += $keyAuthOutput
 $allLines += $registryOutput
 $allLines += $pahOutput
 $allLines += $deletedPrefetchOutput
-$allLines += $deletedMuiCacheOutput
 
 $successCount = ($allLines | Where-Object {
     $_ -match '^SUCCESS'
