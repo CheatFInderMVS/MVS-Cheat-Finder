@@ -13,7 +13,6 @@ Write-Host ""
 Write-Host "  LOC Powershell Code, Slightly Modified To Stop Bypassing/Cleaners | @8wl5 on Discord  " -ForegroundColor Blue
 Write-Host ""
 
-
 # Section outputs
 $exclusionsOutput = @()
 $threatsOutput = @()
@@ -116,18 +115,14 @@ Write-Progress -Activity "CheatFinder Scan" `
 
 # --- Exploit Check ---
 try {
-
     $found = Test-Path "$env:APPDATA\Isabelle"
-
     if ($found) {
         $exploitOutput += "FAILURE: Isabelle exploit folder found."
     }
     else {
         $exploitOutput += "SUCCESS: No exploit signs found."
     }
-
-}
-catch {
+} catch {
     $exploitOutput += "WARNING: Exploit check could not be completed."
 }
 
@@ -159,30 +154,23 @@ Write-Progress -Activity "CheatFinder Scan" `
 
 # --- Deleted Prefetches Check (FIXED + USN HEALTH CHECK) ---
 try {
-
     $prefetchPath = "C:\Windows\Prefetch"
-
-    # Check if USN Journal exists
     try {
         $journal = fsutil usn queryjournal C: 2>$null
-
         if (-not $journal) {
             $deletedPrefetchOutput += "WARNING: USN Journal unavailable or recently deleted."
         }
-    }
-    catch {
+    } catch {
         $deletedPrefetchOutput += "WARNING: Unable to access USN Journal."
     }
 
     $pfFiles = Get-ChildItem $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue
     $pfCount = $pfFiles.Count
 
-    # Low prefetch count warning
     if ($pfCount -lt 50) {
         $deletedPrefetchOutput += "WARNING: Prefetch folder contains unusually few files ($pfCount)."
     }
 
-    # Event log clear detection
     $clearedLogs = Get-WinEvent -FilterHashtable @{
         LogName = 'System'
         Id      = @(104,1102)
@@ -192,7 +180,6 @@ try {
         $deletedPrefetchOutput += "WARNING: Event Log history was recently cleared."
     }
 
-    # USN deleted prefetch detection
     $usnDeleted = fsutil usn readjournal C: csv 2>$null |
         findstr /I "\.pf" |
         findstr /I "delete"
@@ -200,15 +187,9 @@ try {
     $uniqueFiles = [System.Collections.Generic.HashSet[string]]::new()
 
     foreach ($line in $usnDeleted) {
-
         if ($line -match '([A-Za-z0-9_\-]+\.PF)') {
-
             $file = $Matches[1].ToUpper()
-
-            if (
-                $file.Length -gt 8 -and
-                $file -notmatch '^[A-Z0-9]{6,8}\.PF$'
-            ) {
+            if ($file.Length -gt 8 -and $file -notmatch '^[A-Z0-9]{6,8}\.PF$') {
                 $null = $uniqueFiles.Add($file)
             }
         }
@@ -221,12 +202,8 @@ try {
     if ($deletedPrefetchOutput.Count -eq 0) {
         $deletedPrefetchOutput += "SUCCESS: Prefetch folder structure and deletion logs look secure."
     }
-
-}
-catch {
-    $deletedPrefetchOutput = @(
-        "WARNING: Could not verify deleted prefetches."
-    )
+} catch {
+    $deletedPrefetchOutput = @("WARNING: Could not verify deleted prefetches.")
 }
 
 Write-Progress -Activity "CheatFinder Scan" `
@@ -238,7 +215,6 @@ try {
     $muiPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
     $muiKey = Get-Item -Path $muiPath
     
-    # Correct key valuation to return a true integer item total count
     $muiCount = $muiKey.ValueCount
     if ($null -eq $muiCount) {
         $muiCount = ($muiKey.GetValueNames()).Count
@@ -271,24 +247,17 @@ Write-Progress -Activity "CheatFinder Scan" `
     -Status "KeyAuth Check Complete" `
     -PercentComplete 90
 
-    # --- UserAssist Check ---
+# --- UserAssist Check ---
 try {
-
     $userAssistPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist"
-
-    $count = (
-        Get-ChildItem $userAssistPath -Recurse -ErrorAction SilentlyContinue
-    ).Count
-
+    $count = (Get-ChildItem $userAssistPath -Recurse -ErrorAction SilentlyContinue).Count
     if ($count -lt 5) {
         $userAssistOutput += "WARNING: UserAssist appears empty or recently cleared."
     }
     else {
         $userAssistOutput += "SUCCESS: UserAssist history appears normal."
     }
-
-}
-catch {
+} catch {
     $userAssistOutput += "WARNING: Could not verify UserAssist history."
 }
 
@@ -298,25 +267,17 @@ Write-Progress -Activity "CheatFinder Scan" `
 
 # --- BAM Check ---
 try {
-
     $bamPath = "HKLM:\SYSTEM\CurrentControlSet\Services\bam\State\UserSettings"
-
-    $bamCount = (
-        Get-ChildItem $bamPath -Recurse -ErrorAction SilentlyContinue
-    ).Count
-
+    $bamCount = (Get-ChildItem $bamPath -Recurse -ErrorAction SilentlyContinue).Count
     if ($bamCount -lt 5) {
         $bamOutput += "WARNING: BAM execution history appears unusually sparse."
     }
     else {
         $bamOutput += "SUCCESS: BAM execution history appears normal."
     }
-
-}
-catch {
+} catch {
     $bamOutput += "WARNING: Could not access BAM execution history."
 }
-
 
 Write-Progress -Activity "CheatFinder Scan" `
     -Status "BAM Check Complete" `
@@ -324,33 +285,23 @@ Write-Progress -Activity "CheatFinder Scan" `
 
 # --- Jump List Check ---
 try {
-
-    $autoPath =
-        "$env:APPDATA\Microsoft\Windows\Recent\AutomaticDestinations"
-
-    $customPath =
-        "$env:APPDATA\Microsoft\Windows\Recent\CustomDestinations"
-
-    $count =
-        (Get-ChildItem $autoPath -ErrorAction SilentlyContinue).Count +
-        (Get-ChildItem $customPath -ErrorAction SilentlyContinue).Count
-
+    $autoPath = "$env:APPDATA\Microsoft\Windows\Recent\AutomaticDestinations"
+    $customPath = "$env:APPDATA\Microsoft\Windows\Recent\CustomDestinations"
+    $count = (Get-ChildItem $autoPath -ErrorAction SilentlyContinue).Count + (Get-ChildItem $customPath -ErrorAction SilentlyContinue).Count
     if ($count -lt 5) {
         $jumpListOutput += "WARNING: Jump Lists appear unusually empty."
     }
     else {
         $jumpListOutput += "SUCCESS: Jump List history appears normal."
     }
-
-}
-catch {
+} catch {
     $jumpListOutput += "WARNING: Could not verify Jump Lists."
 }
 
 Write-Progress -Activity "CheatFinder Scan" `
     -Status "Jump List Check Complete" `
     -PercentComplete 92
-    
+
 # --- Registry Suspicious Check ---
 try {
     $mui = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
@@ -420,7 +371,7 @@ Start-Job {
 
 Write-Progress -Activity "CheatFinder Scan" -Completed
 
-# --- Print Results with clean spacing layout ---
+# --- Print Results with logical grouping ---
 function Write-Section {
     param ([string]$Title, [string[]]$Lines)
     Write-Host "--- $Title ---" -ForegroundColor White
@@ -432,7 +383,6 @@ function Write-Section {
             if ($line -eq "FAILURE: Exclusion paths detected:") {
                 Write-Host $line -ForegroundColor Red
             } else {
-                # Indents the raw file path variables nicely below the failure label
                 Write-Host "$line" -ForegroundColor Red
             }
         } elseif ($line -match "^WARNING") {
@@ -441,22 +391,23 @@ function Write-Section {
             Write-Host $line -ForegroundColor White
         }
     }
-    Write-Host "" # Explicit layout spacing padding line
+    Write-Host ""
 }
 
-Write-Section "Jump Lists" $jumpListOutput
-Write-Section "BAM History" $bamOutput
-Write-Section "UserAssist" $userAssistOutput
-Write-Section "Prefetch" $prefetchOutput
-Write-Section "Deleted Prefetches" $deletedPrefetchOutput
-Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
-Write-Section "Exclusions" $exclusionsOutput
+# Grouped output order
 Write-Section "Threats" $threatsOutput
 Write-Section "Memory Integrity" $memoryIntegrityOutput
 Write-Section "Windows Defender" $defenderOutput
 Write-Section "Exploit Checker" $exploitOutput
 Write-Section "Key Checker" $keyAuthOutput
+Write-Section "Exclusions" $exclusionsOutput
 Write-Section "Registry Scan" $registryOutput
+Write-Section "Prefetch" $prefetchOutput
+Write-Section "Deleted Prefetches" $deletedPrefetchOutput
+Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
+Write-Section "Jump Lists" $jumpListOutput
+Write-Section "BAM History" $bamOutput
+Write-Section "UserAssist" $userAssistOutput
 Write-Section "PAH (Process Active History)" $pahOutput
 
 
