@@ -461,6 +461,7 @@ Write-Section "Key Checker" $keyAuthOutput
 Write-Section "Registry Scan" $registryOutput
 Write-Section "PAH (Process Active History)" $pahOutput
 
+
 # --- Summary ---
 
 $cleanerScore = 0
@@ -508,6 +509,10 @@ $allLines += $keyAuthOutput
 $allLines += $registryOutput
 $allLines += $pahOutput
 $allLines += $deletedPrefetchOutput
+$allLines += $userAssistOutput
+$allLines += $bamOutput
+$allLines += $jumpListOutput
+$allLines += $deletedMuiCacheOutput
 
 $successCount = ($allLines | Where-Object {
     $_ -match '^SUCCESS'
