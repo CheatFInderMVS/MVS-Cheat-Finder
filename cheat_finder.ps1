@@ -395,6 +395,7 @@ function Write-Section {
 }
 
 # Grouped output order
+Write-Section "Prefetch" $prefetchOutput
 Write-Section "Threats" $threatsOutput
 Write-Section "Memory Integrity" $memoryIntegrityOutput
 Write-Section "Windows Defender" $defenderOutput
@@ -402,7 +403,6 @@ Write-Section "Exploit Checker" $exploitOutput
 Write-Section "Key Checker" $keyAuthOutput
 Write-Section "Exclusions" $exclusionsOutput
 Write-Section "Registry Scan" $registryOutput
-Write-Section "Prefetch" $prefetchOutput
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
 Write-Section "Jump Lists" $jumpListOutput
