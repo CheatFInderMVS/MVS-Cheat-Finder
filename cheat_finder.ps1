@@ -388,16 +388,22 @@ function Write-Section {
     Write-Host "" 
 }
 
-# Re-ordered to perfectly match the rest of the layout sequence
+# 1. Early structural checks print first
 Write-Section "Exclusions" $exclusionsOutput
-Write-Section "Prefetch" $prefetchOutput
 Write-Section "Threats" $threatsOutput
 Write-Section "Memory Integrity" $memoryIntegrityOutput
 Write-Section "Windows Defender" $defenderOutput
 Write-Section "Exploit Checker" $exploitOutput
+
+# 2. Huge Prefetch list prints here (pushing everything down)
+Write-Section "Prefetch" $prefetchOutput
+
+# 3. These sections will now consistently print UNDERNEATH the giant prefetch dump
 Write-Section "Jump Lists" $jumpListOutput
 Write-Section "BAM History" $bamOutput
 Write-Section "UserAssist" $userAssistOutput
+
+# 4. Remaining system scans
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
 Write-Section "Key Checker" $keyAuthOutput
