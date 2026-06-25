@@ -403,13 +403,28 @@ if ($cleanerScore -ge 4) { Write-Host "CRITICAL: LIKELY CLEANER ACTIVITY DETECTE
 elseif ($cleanerScore -ge 2) { Write-Host "SUSPICIOUS SYSTEM CLEANING DETECTED ($cleanerScore/5)" -ForegroundColor Yellow }
 else { Write-Host "No system cleanup indicators detected ($cleanerScore/5)." -ForegroundColor Green }
 
-# Summary Metrics
+# --- Summary Metrics ---
 $successCount = ($allOutputsCombined | Where-Object { $_ -match '^SUCCESS' }).Count
 $failureCount = ($allOutputsCombined | Where-Object { $_ -match '^FAILURE' }).Count
 $warningCount = ($allOutputsCombined | Where-Object { $_ -match '^WARNING' }).Count
 $totalChecks = $successCount + $failureCount + $warningCount
-$rate = ($totalChecks -gt 0) ? [math]::Round(($successCount / $totalChecks) * 100, 2) : 0
-$color = ($rate -ge 90) ? "Green" : (($rate -ge 70) ? "Yellow" : "Red")
+
+# Replaced the ternary operator with standard IF/ELSE statement
+if ($totalChecks -gt 0) {
+    $rate = [math]::Round(($successCount / $totalChecks) * 100, 2)
+} else {
+    $rate = 0
+}
+
+# Replaced the nested ternary operator with standard IF/ELSEIF statement
+if ($rate -ge 90) {
+    $color = "Green"
+} elseif ($rate -ge 70) {
+    $color = "Yellow"
+} else {
+    $color = "Red"
+}
+
 $elapsedSeconds = [math]::Round(((Get-Date) - $startTime).TotalSeconds, 2)
 
 Write-Host ""
