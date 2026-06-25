@@ -20,7 +20,7 @@ Write-Host "   ____ _   _ _____     _  _____   _____ ___ _   _ ____  _____ ____ 
 Write-Host "  / ___| | | | ____|   / \|_   _| |  ___|_ _| \ | |  _ \| ____|  _ \ " -ForegroundColor Green
 Write-Host " | |   | |_| |  _|    / _ \ | |   | |_    | ||  \| | | | |  _| | |_) |" -ForegroundColor Green
 Write-Host " | |___|  _  | |___  / ___ \| |   |  _|   | || |\  | |_| | |___|  _ < " -ForegroundColor Green
-Write-Host "  \____|_| |_|_____/_/   \_ \_|   |_|    |___|_| \_|____/|_____|_| \_\" -ForegroundColor Green
+Write-Host "  \____|_| |_|_____/_/   \_\_|   |_|    |___|_| \_|____/|_____|_| \_\" -ForegroundColor Green
 Write-Host ""
 Write-Host "   LOC Powershell Code, Slightly Modified To Stop Bypassing/Cleaners | @8wl5 on Discord  " -ForegroundColor Blue
 Write-Host ""
