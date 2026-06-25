@@ -1,7 +1,13 @@
 # ===================== BEGIN SCRIPT =====================
+
 # Requires Administrator privileges for full accuracy
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "CRITICAL ERROR: This script MUST be run as an Administrator!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "====================================================" -ForegroundColor Red
+    Write-Host " CRITICAL ERROR: Please run as Administrator!       " -ForegroundColor Yellow
+    Write-Host " Please open PowerShell as Admin and try again.     " -ForegroundColor Yellow
+    Write-Host "====================================================" -ForegroundColor Red
+    Write-Host ""
     Exit
 }
 
