@@ -388,17 +388,18 @@ function Write-Section {
     Write-Host "" 
 }
 
+# Re-ordered to perfectly match the rest of the layout sequence
+Write-Section "Exclusions" $exclusionsOutput
+Write-Section "Threats" $threatsOutput
+Write-Section "Memory Integrity" $memoryIntegrityOutput
+Write-Section "Windows Defender" $defenderOutput
+Write-Section "Exploit Checker" $exploitOutput
 Write-Section "Jump Lists" $jumpListOutput
 Write-Section "BAM History" $bamOutput
 Write-Section "UserAssist" $userAssistOutput
 Write-Section "Prefetch" $prefetchOutput
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
-Write-Section "Exclusions" $exclusionsOutput
-Write-Section "Threats" $threatsOutput
-Write-Section "Memory Integrity" $memoryIntegrityOutput
-Write-Section "Windows Defender" $defenderOutput
-Write-Section "Exploit Checker" $exploitOutput
 Write-Section "Key Checker" $keyAuthOutput
 Write-Section "Registry Scan" $registryOutput
 Write-Section "PAH (Process Active History)" $pahOutput
