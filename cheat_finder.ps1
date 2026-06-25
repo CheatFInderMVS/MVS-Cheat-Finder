@@ -138,22 +138,15 @@ Write-Progress -Activity "CheatFinder Scan" -Status "Exploit Check Complete" -Pe
 try {
     $now = Get-Date
     $pfFiles = Get-ChildItem "C:\Windows\Prefetch" -Filter "*.pf"
-    $foundPfThreat = $false
-    
     foreach ($pf in $pfFiles) {
         $name = $pf.BaseName.ToUpper()
         $lastWrite = $pf.LastWriteTime
         $age = [math]::Round(($now - $lastWrite).TotalHours, 2)
-        
         if ($watchlist -contains "$name.EXE") {
             $prefetchOutput += "WARNING: Suspicious prefetch file: $name | $age hours ago"
-            $foundPfThreat = $true
+        } else {
+            $prefetchOutput += "Detected: $name | $age hrs ago"
         }
-    }
-    
-    # Clean up the output so it mirrors Jump Lists, BAM, and UserAssist nicely
-    if (-not $foundPfThreat) {
-        $prefetchOutput += "SUCCESS: Prefetch history appears normal."
     }
 } catch {
     $prefetchOutput += "WARNING: Could not access prefetch."
