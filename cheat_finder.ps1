@@ -388,22 +388,18 @@ function Write-Section {
     Write-Host "" 
 }
 
-# 1. Early structural checks print first
+# 1. Giant Prefetch list prints FIRST at the very top of the output stream
+Write-Section "Prefetch" $prefetchOutput
+
+# 2. EVERYTHING ELSE prints consistently UNDERNEATH the giant prefetch dump
 Write-Section "Exclusions" $exclusionsOutput
 Write-Section "Threats" $threatsOutput
 Write-Section "Memory Integrity" $memoryIntegrityOutput
 Write-Section "Windows Defender" $defenderOutput
 Write-Section "Exploit Checker" $exploitOutput
-
-# 2. Huge Prefetch list prints here (pushing everything down)
-Write-Section "Prefetch" $prefetchOutput
-
-# 3. These sections will now consistently print UNDERNEATH the giant prefetch dump
 Write-Section "Jump Lists" $jumpListOutput
 Write-Section "BAM History" $bamOutput
 Write-Section "UserAssist" $userAssistOutput
-
-# 4. Remaining system scans
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
 Write-Section "Key Checker" $keyAuthOutput
