@@ -390,6 +390,7 @@ function Write-Section {
 
 # Re-ordered to perfectly match the rest of the layout sequence
 Write-Section "Exclusions" $exclusionsOutput
+Write-Section "Prefetch" $prefetchOutput
 Write-Section "Threats" $threatsOutput
 Write-Section "Memory Integrity" $memoryIntegrityOutput
 Write-Section "Windows Defender" $defenderOutput
@@ -397,7 +398,6 @@ Write-Section "Exploit Checker" $exploitOutput
 Write-Section "Jump Lists" $jumpListOutput
 Write-Section "BAM History" $bamOutput
 Write-Section "UserAssist" $userAssistOutput
-Write-Section "Prefetch" $prefetchOutput
 Write-Section "Deleted Prefetches" $deletedPrefetchOutput
 Write-Section "Deleted Muicaches" $deletedMuiCacheOutput
 Write-Section "Key Checker" $keyAuthOutput
